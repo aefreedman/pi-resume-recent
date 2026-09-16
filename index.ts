@@ -21,7 +21,8 @@ export async function openRecentPicker(args: string, ctx: ExtensionCommandContex
   const cutoff = activityCutoff(maxAge);
   const manager = ctx.sessionManager;
   const currentFile = manager.getSessionFile();
-  const loaders = createLoaders(manager.getCwd(), manager.getSessionDir(), cutoff);
+  const controller = new AbortController();
+  const loaders = createLoaders(manager.getCwd(), manager.getSessionDir(), cutoff, { signal: controller.signal });
   const selected = await ctx.ui.custom<string | null>((tui, _theme, keybindings, done) => {
     let disposed = false;
     const requestRender = () => { if (!disposed) tui.requestRender(); };
@@ -55,7 +56,7 @@ export async function openRecentPicker(args: string, ctx: ExtensionCommandContex
       render: (width: number) => picker.render(width),
       invalidate: () => picker.invalidate(),
       handleInput: (data: string) => { picker.handleInput(data); requestRender(); },
-      dispose: () => { disposed = true; },
+      dispose: () => { disposed = true; controller.abort(); },
     };
   });
   if (selected) {

@@ -1,31 +1,42 @@
 import { join, resolve } from "node:path";
-import { getAgentDir, SessionManager, type SessionInfo } from "@earendil-works/pi-coding-agent";
-import { filterByActivity } from "./activity.ts";
+import { getAgentDir, type SessionInfo } from "@earendil-works/pi-coding-agent";
+import { scanSessions, type Progress } from "./discovery.ts";
 
-type Progress = (loaded: number, total: number) => void;
 export type SessionsLoader = (onProgress?: Progress) => Promise<SessionInfo[]>;
+
+function defaultDirectory(cwd: string, agentDir: string): string {
+  const encoded = `--${resolve(cwd).replace(/^[/\\]/, "").replace(/[/\\:]/g, "-")}--`;
+  return join(resolve(agentDir), "sessions", encoded);
+}
 
 // ReadonlySessionManager does not expose usesDefaultSessionDir(). Mirror Pi 0.85.1's
 // directory encoding without creating a directory or opening another session.
 export function usesDefaultDirectory(cwd: string, sessionDir: string, agentDir: string): boolean {
-  if (!sessionDir) return true;
-  const encoded = `--${resolve(cwd).replace(/^[/\\]/, "").replace(/[/\\:]/g, "-")}--`;
-  return resolve(sessionDir) === join(resolve(agentDir), "sessions", encoded);
+  return !sessionDir || resolve(sessionDir) === defaultDirectory(cwd, agentDir);
 }
 
 export function createLoaders(
   cwd: string,
   sessionDir: string,
   cutoff: number | null,
-  agentDir = getAgentDir(),
-  manager: Pick<typeof SessionManager, "list" | "listAll"> = SessionManager,
+  options: { agentDir?: string; scan?: typeof scanSessions; signal?: AbortSignal } = {},
 ): { current: SessionsLoader; all: SessionsLoader } {
-  const defaultDirectory = usesDefaultDirectory(cwd, sessionDir, agentDir);
+  const agentDir = options.agentDir ?? getAgentDir();
+  const scan = options.scan ?? scanSessions;
+  const isDefault = usesDefaultDirectory(cwd, sessionDir, agentDir);
+  const directory = sessionDir || defaultDirectory(cwd, agentDir);
   return {
-    current: async (progress) => filterByActivity(await manager.list(cwd, sessionDir || undefined, progress), cutoff),
-    all: async (progress) => filterByActivity(
-      await (defaultDirectory ? manager.listAll(progress) : manager.listAll(sessionDir, progress)),
+    current: (progress) => scan({
+      directory,
       cutoff,
-    ),
+      cwd: isDefault ? undefined : cwd,
+      signal: options.signal,
+    }, progress),
+    all: (progress) => scan({
+      directory: isDefault ? join(agentDir, "sessions") : directory,
+      projectDirectories: isDefault,
+      cutoff,
+      signal: options.signal,
+    }, progress),
   };
 }

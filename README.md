@@ -43,9 +43,17 @@ The extension directly reuses Pi's exported `SessionSelectorComponent`. It prese
 
 Both Current Folder and All are filtered before the picker receives their session lists, including refreshes after rename or deletion. Custom session directories stay scoped to their configured storage. A recent child of an excluded parent appears as a root. Filtering never deletes or rewrites sessions.
 
-The cutoff is computed once when the picker opens. Sessions exactly on the boundary are included. Reopen the picker to advance the window. Pi's `SessionInfo.modified` supplies the activity timestamp: latest message activity, falling back to creation time and then filesystem modification time. Renaming or copying a session does not itself make its messages recent.
+The cutoff is computed once when the picker opens. Sessions exactly on the boundary are included. Reopen the picker to advance the window. Activity follows Pi 0.85.1's `SessionInfo.modified` semantics: latest user or assistant message timestamp, falling back to creation time and then filesystem modification time. Renaming or copying a session does not itself make its messages recent.
 
-The UI intentionally adds no age badge or new controls. Use `/resume-recent-settings` to see the saved window. The picker still reads session metadata before filtering, so this is a visibility filter, not a promise of faster session scanning.
+### Avoiding old log reads
+
+The loader lists filenames and checks filesystem modification times first. Files last written before the cutoff are skipped without opening or parsing their contents. A two-second margin accommodates filesystem timestamp rounding. Only shortlisted logs are read to build the native search text and check actual message activity. An old session used recently is included because appending messages updates its file modification time; creation dates and filenames are not used to exclude it.
+
+This shortcut assumes ordinary filesystem timestamps: a log's last write must not predate the messages written to it. Manually backdated files, unusual clock changes, or restored files with inconsistent timestamps can violate that assumption. Use `/resume-recent all` or the built-in `/resume` to bypass the shortcut. Newly copied or renamed old logs may still be read, but their actual activity keeps them out of the filtered results.
+
+Directory enumeration and file metadata checks still cover the selected scope. Recently modified large logs still need full reads to preserve native full-text search. Up to eight files are processed concurrently, and closing the picker cancels pending scanning and active reads. No history index or message cache is written.
+
+The UI intentionally adds no age badge or new controls. Use `/resume-recent-settings` to see the saved window.
 
 The native delete action tries the `trash` command and falls back to permanent deletion when trash is unavailable or fails, just like `/resume`. It requires confirmation and protects the active session. Opening the picker requires an idle interactive terminal session.
 
@@ -57,9 +65,9 @@ npm run validate
 npm pack --dry-run
 ```
 
-Tests cover duration validation, inclusive cutoffs, saved settings, custom/global storage routing, activity versus filesystem timestamps, native render parity, search/scope/selection, and loading through Pi's extension loader. They use synthetic sessions and temporary directories.
+Tests cover duration validation, inclusive cutoffs, saved settings, custom/global storage routing, activity versus filesystem timestamps, native render parity, search/scope/selection, and loading through Pi's extension loader. Discovery tests assert that old file contents are never opened, compare metadata with Pi's native reader, exercise cancellation, and report a synthetic archive timing comparison. They use synthetic sessions and temporary directories.
 
-The package uses public Pi exports, with one small compatibility helper for recognizing Pi's default session directory encoding because the read-only extension context does not expose `usesDefaultSessionDir()`. Review that helper and the exported picker constructor when upgrading Pi. No picker source is copied and no core files are patched.
+The package uses public Pi exports for the UI and session switching. Its loader recognizes Pi's default session directory encoding and builds the native `SessionInfo` shape for shortlisted files, because Pi's public listing API reads every log before returning. Review directory encoding, metadata parity tests, and the exported picker constructor when upgrading Pi. No picker source is copied and no core files are patched.
 
 `private: true` prevents accidental npm publication during the pilot.
 

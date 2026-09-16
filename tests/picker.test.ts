@@ -5,6 +5,8 @@ import { join, resolve } from "node:path";
 import test, { after } from "node:test";
 import { initTheme, SessionManager, SessionSelectorComponent, type SessionInfo } from "@earendil-works/pi-coding-agent";
 import { createLoaders, usesDefaultDirectory } from "../src/loaders.ts";
+import { filterByActivity } from "../src/activity.ts";
+import { scanSessions } from "../src/discovery.ts";
 
 const now = Date.parse("2026-04-01T12:00:00Z");
 const cutoff = now - 7 * 86_400_000;
@@ -27,17 +29,18 @@ test("custom directory routing stays scoped and filters every refresh with one c
   let currentCalls = 0;
   const rows = [session("old", cutoff - 1), session("included", cutoff)];
   const directory = resolve("custom-sessions");
-  const manager: Pick<typeof SessionManager, "list" | "listAll"> = {
-    list: async (cwd, dir, progress) => {
+  const scan: typeof scanSessions = async (options, progress) => {
+    if (options.cwd !== undefined) {
       currentCalls++;
-      assert.equal(cwd, process.cwd());
-      assert.equal(dir, directory);
-      progress?.(2, 2);
-      return rows;
-    },
-    listAll: async (dir) => { assert.equal(dir, directory); return rows; },
+      assert.equal(options.cwd, process.cwd());
+    }
+    assert.equal(options.directory, directory);
+    assert.ok(!options.projectDirectories);
+    assert.equal(options.cutoff, cutoff);
+    progress?.(2, 2);
+    return filterByActivity(rows, options.cutoff);
   };
-  const loaders = createLoaders(process.cwd(), directory, cutoff, resolve("agent"), manager);
+  const loaders = createLoaders(process.cwd(), directory, cutoff, { agentDir: resolve("agent"), scan });
   const progress: number[] = [];
   assert.deepEqual(await loaders.current((loaded) => progress.push(loaded)), [rows[1]]);
   assert.deepEqual(await loaders.all(), [rows[1]]);
@@ -54,11 +57,14 @@ test("default storage routes All through Pi's global listing", async () => {
   assert.equal(usesDefaultDirectory(cwd, directory, agent), true);
   assert.equal(usesDefaultDirectory(cwd, `${directory}-custom`, agent), false);
   const progress = () => {};
-  const manager: Pick<typeof SessionManager, "list" | "listAll"> = {
-    list: async () => [],
-    listAll: async (received) => { assert.equal(received, progress); return []; },
+  const scan: typeof scanSessions = async (options, received) => {
+    assert.equal(received, progress);
+    assert.equal(options.directory, join(agent, "sessions"));
+    assert.equal(options.projectDirectories, true);
+    assert.equal(options.cwd, undefined);
+    return [];
   };
-  await createLoaders(cwd, directory, cutoff, agent, manager).all(progress);
+  await createLoaders(cwd, directory, cutoff, { agentDir: agent, scan }).all(progress);
 });
 
 test("native picker renders identically for filtered input; scope, search, sorting, and cancellation work", async () => {
@@ -66,11 +72,8 @@ test("native picker renders identically for filtered input; scope, search, sorti
   const child = session("recent-child", now, { name: "Recent child", parentSessionPath: parent.path });
   const other = session("other-project", now, { cwd: resolve("other") });
   const rows = [parent, child];
-  const manager: Pick<typeof SessionManager, "list" | "listAll"> = {
-    list: async () => rows,
-    listAll: async () => [...rows, other],
-  };
-  const loaders = createLoaders(process.cwd(), resolve("custom"), cutoff, resolve("agent"), manager);
+  const scan: typeof scanSessions = async (options) => filterByActivity(options.cwd ? rows : [...rows, other], options.cutoff);
+  const loaders = createLoaders(process.cwd(), resolve("custom"), cutoff, { agentDir: resolve("agent"), scan });
   let selected: string | undefined;
   let cancelled = false;
   const picker = new SessionSelectorComponent(loaders.current, loaders.all, (path) => { selected = path; }, () => { cancelled = true; }, () => {}, () => {});
@@ -118,11 +121,8 @@ test("Pi activity timestamps win over a fresh filesystem mtime and session renam
 });
 
 test("loader failures propagate instead of turning into an unfiltered result", async () => {
-  const manager: Pick<typeof SessionManager, "list" | "listAll"> = {
-    list: async () => { throw new Error("read failed"); },
-    listAll: async () => { throw new Error("read failed"); },
-  };
-  const loaders = createLoaders(process.cwd(), resolve("custom"), cutoff, resolve("agent"), manager);
+  const scan: typeof scanSessions = async () => { throw new Error("read failed"); };
+  const loaders = createLoaders(process.cwd(), resolve("custom"), cutoff, { agentDir: resolve("agent"), scan });
   await assert.rejects(loaders.current(), /read failed/);
   await assert.rejects(loaders.all(), /read failed/);
 });

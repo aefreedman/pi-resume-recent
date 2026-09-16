@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Skip old log contents using filesystem modification times before reading shortlisted sessions; retain actual activity filtering and native search metadata.
+- Bound file work to eight concurrent reads and cancel scanning when the picker closes.
+- Add native metadata parity, no-old-content-read, scope, cancellation, and synthetic performance tests.
+
 - Add `/resume-recent` using Pi's native session picker with a rolling activity cutoff.
 - Support arbitrary minute, hour, day, and week durations and an unfiltered override.
 - Add `/resume-recent-settings` and a persistent global `maxAge` setting.
