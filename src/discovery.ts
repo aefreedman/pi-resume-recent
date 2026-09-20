@@ -103,7 +103,7 @@ function missingFile(error: unknown): boolean {
 
 async function sessionFiles(directory: string): Promise<string[]> {
   try {
-    return (await readdir(directory)).filter((name) => name.endsWith(".jsonl")).map((name) => join(directory, name));
+    return (await readdir(directory)).filter((name) => name.endsWith(".jsonl")).sort((a, b) => b.localeCompare(a)).map((name) => join(directory, name));
   } catch (error) {
     if (missingFile(error)) return [];
     throw error;

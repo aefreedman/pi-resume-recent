@@ -9,7 +9,7 @@ function defaultDirectory(cwd: string, agentDir: string): string {
   return join(resolve(agentDir), "sessions", encoded);
 }
 
-// ReadonlySessionManager does not expose usesDefaultSessionDir(). Mirror Pi 0.85.1's
+// ReadonlySessionManager does not expose usesDefaultSessionDir(). Mirror Pi 0.86.1's
 // directory encoding without creating a directory or opening another session.
 export function usesDefaultDirectory(cwd: string, sessionDir: string, agentDir: string): boolean {
   return !sessionDir || resolve(sessionDir) === defaultDirectory(cwd, agentDir);

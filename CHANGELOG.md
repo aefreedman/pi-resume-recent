@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Changed
+
+- Updated Pi development dependency and session metadata validation baseline to 0.86.1.
+
 - Skip old log contents using filesystem modification times before reading shortlisted sessions; retain actual activity filtering and native search metadata.
 - Bound file work to eight concurrent reads and cancel scanning when the picker closes.
 - Add native metadata parity, no-old-content-read, scope, cancellation, and synthetic performance tests.

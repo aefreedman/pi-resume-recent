@@ -5,29 +5,47 @@
   "description": "Pi's native session picker with a configurable recent-activity window.",
   "type": "module",
   "license": "MIT",
-  "keywords": ["pi-package"],
+  "keywords": [
+    "pi-package"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/aefreedman/pi-resume-recent.git"
   },
   "homepage": "https://github.com/aefreedman/pi-resume-recent#readme",
-  "bugs": { "url": "https://github.com/aefreedman/pi-resume-recent/issues" },
-  "files": ["index.ts", "src/", "README.md", "CHANGELOG.md", "LICENSE"],
-  "pi": { "extensions": ["./index.ts"] },
+  "bugs": {
+    "url": "https://github.com/aefreedman/pi-resume-recent/issues"
+  },
+  "files": [
+    "index.ts",
+    "src/",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ]
+  },
   "scripts": {
     "check": "tsc --noEmit",
     "test": "tsx --test tests/*.test.ts",
     "validate": "npm run check && npm test"
   },
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "peerDependencies": {
     "@earendil-works/pi-coding-agent": "*"
   },
   "peerDependenciesMeta": {
-    "@earendil-works/pi-coding-agent": { "optional": true }
+    "@earendil-works/pi-coding-agent": {
+      "optional": true
+    }
   },
   "devDependencies": {
-    "@earendil-works/pi-coding-agent": "0.85.1",
+    "@earendil-works/pi-coding-agent": "0.86.1",
     "@types/node": "^24.0.0",
     "tsx": "^4.23.0",
     "typescript": "^5.9.3"

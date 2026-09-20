@@ -96,6 +96,8 @@ test("metadata and search text match Pi across message roles, timestamp ordering
   const entries = [
     { type: "session", version: 3, id: "parity", cwd, timestamp: new Date(old).toISOString(), parentSession: join(directory, "parent.jsonl") },
     { type: "session_info", name: "Initial" },
+    { type: "message", timestamp: new Date(now - 3000).toISOString(), message: { role: "system", content: "transcript prompt patch", timestamp: now - 3000 } },
+    { type: "usage", kind: "cache_warm", timestamp: new Date(now - 2500).toISOString(), usage: { input: 0, output: 0, cacheRead: 1, cacheWrite: 0, totalTokens: 1, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } } },
     { type: "message", timestamp: new Date(now).toISOString(), message: { role: "user", content: [{ type: "text", text: "first" }, { type: "image", data: "ignored" }, { type: "text", text: "question" }] } },
     { type: "message", timestamp: new Date(now - 1000).toISOString(), message: { role: "assistant", timestamp: now - 2000, content: [{ type: "thinking", thinking: "ignored" }, { type: "text", text: "answer" }] } },
     { type: "message", message: { role: "toolResult", timestamp: now + 9000, content: "not searchable" } },

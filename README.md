@@ -4,7 +4,7 @@ Pi's native resume picker, filtered by most-recent session activity. This GitHub
 
 ## Install
 
-Requires Pi 0.85.1 or newer. Tested against 0.85.1.
+Requires Pi 0.86.1.
 
 ```sh
 pi install git:github.com/aefreedman/pi-resume-recent
