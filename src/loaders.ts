@@ -2,7 +2,7 @@ import { join, resolve } from "node:path";
 import { getAgentDir, type SessionInfo } from "@earendil-works/pi-coding-agent";
 import { scanSessions, type Progress } from "./discovery.ts";
 
-export type SessionsLoader = (onProgress?: Progress) => Promise<SessionInfo[]>;
+export type SessionsLoader = (onProgress?: Progress, signal?: AbortSignal) => Promise<SessionInfo[]>;
 
 function defaultDirectory(cwd: string, agentDir: string): string {
   const encoded = `--${resolve(cwd).replace(/^[/\\]/, "").replace(/[/\\:]/g, "-")}--`;
@@ -25,18 +25,20 @@ export function createLoaders(
   const scan = options.scan ?? scanSessions;
   const isDefault = usesDefaultDirectory(cwd, sessionDir, agentDir);
   const directory = sessionDir || defaultDirectory(cwd, agentDir);
+  const loadSignal = (signal?: AbortSignal) => options.signal && signal
+    ? AbortSignal.any([options.signal, signal]) : signal ?? options.signal;
   return {
-    current: (progress) => scan({
+    current: (progress, signal) => scan({
       directory,
       cutoff,
       cwd: isDefault ? undefined : cwd,
-      signal: options.signal,
+      signal: loadSignal(signal),
     }, progress),
-    all: (progress) => scan({
+    all: (progress, signal) => scan({
       directory: isDefault ? join(agentDir, "sessions") : directory,
       projectDirectories: isDefault,
       cutoff,
-      signal: options.signal,
+      signal: loadSignal(signal),
     }, progress),
   };
 }

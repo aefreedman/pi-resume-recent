@@ -11,7 +11,7 @@ export interface ScanOptions {
   cutoff: number | null;
   signal?: AbortSignal;
 }
-export type Progress = (loaded: number, total: number) => void;
+export type Progress = (loaded: number, total: number, partialSessions?: readonly SessionInfo[]) => void;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -145,6 +145,10 @@ export async function scanSessions(
   const results: (SessionInfo | null)[] = new Array(files.length).fill(null);
   let next = 0;
   let loaded = 0;
+  const partial: SessionInfo[] = [];
+  let published = 0;
+  // Publish the first eligible result immediately, then batch snapshots and completion.
+  const publishInterval = options.projectDirectories ? 100 : 10;
   // Some filesystems round mtimes to two seconds. Keep a small conservative margin.
   const mtimeCutoff = options.cutoff === null ? null : options.cutoff - 2_000;
   const worker = async () => {
@@ -162,11 +166,20 @@ export async function scanSessions(
         if (options.cutoff !== null && info.modified.getTime() < options.cutoff) continue;
         if (options.cwd !== undefined && (!info.cwd || resolve(info.cwd) !== resolve(options.cwd))) continue;
         results[index] = info;
+        partial.push(info);
       } catch (error) {
         // Concurrent deletion is expected; permission and I/O failures must stay visible.
         if (!missingFile(error)) throw error;
       } finally {
-        onProgress?.(++loaded, files.length);
+        loaded++;
+        if (!options.signal?.aborted) {
+          const publish = (partial.length === 1 && published === 0)
+            || loaded % publishInterval === 0 || loaded === files.length;
+          if (publish) published = partial.length;
+          onProgress?.(loaded, files.length, publish
+            ? [...partial].sort((a, b) => b.modified.getTime() - a.modified.getTime())
+            : undefined);
+        }
       }
     }
   };

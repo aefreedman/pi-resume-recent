@@ -51,7 +51,7 @@ The loader lists filenames and checks filesystem modification times first. Files
 
 This shortcut assumes ordinary filesystem timestamps: a log's last write must not predate the messages written to it. Manually backdated files, unusual clock changes, or restored files with inconsistent timestamps can violate that assumption. Use `/resume-recent all` or the built-in `/resume` to bypass the shortcut. Newly copied or renamed old logs may still be read, but their actual activity keeps them out of the filtered results.
 
-Directory enumeration and file metadata checks still cover the selected scope. Recently modified large logs still need full reads to preserve native full-text search. Up to eight files are processed concurrently, and closing the picker cancels pending scanning and active reads. No history index or message cache is written.
+Directory enumeration and file metadata checks still cover the selected scope. Recently modified large logs still need full reads to preserve native full-text search. Up to eight files are processed concurrently. Eligible sessions appear in the native picker as they finish loading; partial lists are filtered before display and periodically refreshed. Closing the picker or cancelling a picker load stops pending scanning and active reads. No history index or message cache is written.
 
 The UI intentionally adds no age badge or new controls. Use `/resume-recent-settings` to see the saved window.
 
@@ -65,7 +65,7 @@ npm run validate
 npm pack --dry-run
 ```
 
-Tests cover duration validation, inclusive cutoffs, saved settings, custom/global storage routing, activity versus filesystem timestamps, native render parity, search/scope/selection, and loading through Pi's extension loader. Discovery tests assert that old file contents are never opened, compare metadata with Pi's native reader, exercise cancellation, and report a synthetic archive timing comparison. They use synthetic sessions and temporary directories.
+Tests cover duration validation, inclusive cutoffs, saved settings, custom/global storage routing, activity versus filesystem timestamps, native render parity, progressive selection, search/scope/selection, and loading through Pi's extension loader. Discovery tests assert that old file contents are never opened, compare metadata with Pi's native reader, exercise cancellation, and report a synthetic archive timing comparison. They use synthetic sessions and temporary directories.
 
 The package uses public Pi exports for the UI and session switching. Its loader recognizes Pi's default session directory encoding and builds the native `SessionInfo` shape for shortlisted files, because Pi's public listing API reads every log before returning. Review directory encoding, metadata parity tests, and the exported picker constructor when upgrading Pi. No picker source is copied and no core files are patched.
 

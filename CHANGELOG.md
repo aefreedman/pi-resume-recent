@@ -4,6 +4,7 @@
 
 ### Changed
 
+- Publish activity-filtered partial session lists to Pi's progressive resume picker and honor its per-load cancellation signal.
 - Updated Pi development dependency and session metadata validation baseline to 0.86.1.
 
 - Skip old log contents using filesystem modification times before reading shortlisted sessions; retain actual activity filtering and native search metadata.

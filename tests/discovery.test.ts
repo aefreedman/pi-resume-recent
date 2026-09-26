@@ -56,6 +56,40 @@ test("old log contents are never opened; reopening an old session is included", 
   t.diagnostic(`Synthetic 12 MiB archive: opened 1/25 logs; filtered scan ${filteredMs.toFixed(1)} ms, full native scan ${nativeMs.toFixed(1)} ms.`);
 });
 
+test("partial snapshots contain only eligible sessions, sorted and available before the scan completes", { timeout: 5_000 }, async () => {
+  const directory = join(root, "progressive");
+  const slow = await makeSession(directory, "z-slow", now - 1000);
+  const recent = await makeSession(directory, "a-recent", now);
+  await makeSession(directory, "b-old-touched", old, { mtime: now });
+  await makeSession(directory, "c-other-cwd", now, { cwd: resolve("other-project") });
+  for (let i = 0; i < 9; i++) await makeSession(directory, `d-${i}`, old);
+  let releaseSlow!: () => void;
+  const slowGate = new Promise<void>((resolve) => { releaseSlow = resolve; });
+  let sawPartial!: () => void;
+  const firstPartial = new Promise<void>((resolve) => { sawPartial = resolve; });
+  const snapshots: string[][] = [];
+  const scan = scanSessions({ directory, cwd, cutoff }, (loaded, total, partial) => {
+    assert.ok(loaded <= total);
+    if (partial) {
+      snapshots.push(partial.map((session) => session.path));
+      if (partial.some((session) => session.path === recent)) sawPartial();
+    }
+  }, async (...args) => {
+    if (args[0] === slow) await slowGate;
+    return readSessionInfo(...args);
+  });
+  try {
+    await firstPartial;
+    assert.ok(snapshots.some((paths) => paths.includes(recent) && !paths.includes(slow)));
+    assert.ok(snapshots.every((paths) => !paths.some((path) => path.includes("old-touched") || path.includes("other-cwd"))));
+  } finally {
+    releaseSlow();
+  }
+  const final = await scan;
+  assert.deepEqual(final.map((session) => session.path), [recent, slow]);
+  assert.deepEqual(snapshots.at(-1), [recent, slow]);
+});
+
 test("freshly touched old logs are excluded by actual activity; all bypasses backdated mtimes", async () => {
   const directory = join(root, "timestamps");
   await makeSession(directory, "touched-old", old, { mtime: now });

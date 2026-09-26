@@ -49,6 +49,56 @@ test("custom directory routing stays scoped and filters every refresh with one c
   assert.deepEqual(progress, [2]);
 });
 
+test("picker can select a filtered partial result while loading and per-load abort stops scanning", async () => {
+  const recent = session("visible-now", now);
+  const old = session("excluded", cutoff - 1);
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  let started!: () => void;
+  const progressReady = new Promise<void>((resolve) => { started = resolve; });
+  let receivedSignal: AbortSignal | undefined;
+  const scan: typeof scanSessions = async (options, progress) => {
+    receivedSignal = options.signal;
+    progress?.(1, 2, [recent]);
+    started();
+    await gate;
+    options.signal?.throwIfAborted();
+    return [recent];
+  };
+  const loaders = createLoaders(process.cwd(), resolve("custom"), cutoff, { agentDir: resolve("agent"), scan });
+  let selected: string | undefined;
+  const picker = new SessionSelectorComponent(loaders.current, loaders.all, (path) => { selected = path; }, () => {}, () => {}, () => {});
+  try {
+    await progressReady;
+    assert.equal(picker.getSessionList().getSelectedSessionPath(), recent.path);
+    assert.ok(!picker.render(120).join("\n").includes(old.id));
+    picker.handleInput("\r");
+    assert.equal(selected, recent.path);
+    assert.equal(receivedSignal?.aborted, true);
+  } finally {
+    release();
+  }
+});
+
+test("loader combines picker and dialog cancellation signals", async () => {
+  const dialog = new AbortController();
+  const picker = new AbortController();
+  let received: AbortSignal | undefined;
+  const scan: typeof scanSessions = async (options) => {
+    received = options.signal;
+    return [];
+  };
+  const loaders = createLoaders(process.cwd(), resolve("custom"), cutoff, { signal: dialog.signal, scan });
+  await loaders.current(undefined, picker.signal);
+  assert.equal(received?.aborted, false);
+  picker.abort();
+  assert.equal(received?.aborted, true);
+  const other = new AbortController();
+  await loaders.all(undefined, other.signal);
+  dialog.abort();
+  assert.equal(received?.aborted, true);
+});
+
 test("default storage routes All through Pi's global listing", async () => {
   const agent = resolve("agent");
   const cwd = process.cwd();
