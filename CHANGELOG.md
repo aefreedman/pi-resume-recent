@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Align development and deterministic validation with Pi 0.99.1.
+
 ### Changed
 
 - Publish activity-filtered partial session lists to Pi's progressive resume picker and honor its per-load cancellation signal.
