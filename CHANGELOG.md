@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Pin TypeScript 7.0.2; align direct Node types with the runtime floor; run offline tests with native Node instead of tsx; require Node >=22.19.0 for the Pi runtime.
+
 - Align development and deterministic validation with Pi 0.99.1.
 
 ### Changed
